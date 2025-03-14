@@ -18,6 +18,14 @@ The application provides an interactive UI to configure parameters for each algo
 
 The Fixed Window algorithm divides time into fixed intervals (e.g., 1 minute) and allows a maximum number of requests within each interval. When the interval ends, the counter resets.
 
+**Example:**
+
+If the rate limit is set to 10 requests per minute (fixed window):
+- If you make 8 requests in the first 30 seconds, you have 2 remaining requests for that minute window.
+- If you make 10 requests in the first 30 seconds, any additional requests in that minute will be rejected.
+- At exactly the 1-minute mark, the counter resets to 0, and you can make 10 new requests immediately.
+- This can lead to a "boundary problem" - if you make 10 requests at 0:59 and 10 more at 1:01, you've made 20 requests in 2 seconds, which is much higher than the intended rate.
+
 **Pros:**
 - Simple to understand and implement
 - Low memory footprint
@@ -31,6 +39,15 @@ The Fixed Window algorithm divides time into fixed intervals (e.g., 1 minute) an
 
 The Sliding Window algorithm tracks requests over a continuous moving time window. Instead of resetting counters at fixed intervals, it gradually expires old requests as time moves forward.
 
+**Example:**
+
+If the rate limit is set to 10 requests per minute (sliding window):
+- If you make 10 requests at 0:30, all are accepted.
+- At 1:00, none of those requests have expired yet, so you have 0 requests available.
+- At 1:15, 5 of your requests (those made between 0:30-0:45) have now expired, so you can make 5 new requests.
+- At 1:30, all 10 previous requests have expired, so your full quota is available again.
+- This prevents the boundary spike problem by smoothly distributing request allowance over time.
+
 **Pros:**
 - More accurate rate limiting than fixed window
 - Prevents boundary spike issues
@@ -43,6 +60,17 @@ The Sliding Window algorithm tracks requests over a continuous moving time windo
 ### Token Bucket
 
 The Token Bucket algorithm uses the concept of a bucket filled with tokens. Each request consumes one token, and tokens are replenished at a fixed rate. When the bucket is empty, requests are rejected until more tokens are added.
+
+**Example:**
+
+If the token bucket has a capacity of 10 tokens and refills at 1 token per 6 seconds (10 per minute):
+- Initially, the bucket is full with 10 tokens.
+- If you make 5 requests immediately, you have 5 tokens left.
+- If you then make 8 more requests immediately, 5 will succeed and 3 will be rejected (as the bucket is now empty).
+- After 18 seconds, 3 new tokens will have been added to the bucket (at the rate of 1 token per 6 seconds).
+- You can now make 3 more requests successfully.
+- If you don't make any requests for a full minute, the bucket will refill to its maximum of 10 tokens.
+- This allows for bursts of traffic up to the bucket size while maintaining the long-term rate limit.
 
 **Pros:**
 - Allows for bursts of traffic (up to the bucket size)
